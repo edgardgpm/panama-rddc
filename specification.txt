@@ -1,0 +1,177 @@
+================================================================
+PROJECT SPECIFICATION
+AI_RDDPanama — Road Defect Detection Pipeline
+================================================================
+
+----------------------------------------------------------------
+1. PROJECT OVERVIEW
+----------------------------------------------------------------
+AI_RDDPanama is an automated computer vision pipeline for
+detecting road surface defects in Panama. It uses a YOLO11n
+object detection model trained on the RDD2022ES (Road Damage
+Dataset 2022, Extended Spain) dataset sourced from Kaggle.
+
+The pipeline covers the full lifecycle: dataset acquisition,
+formatting, model training, and inference.
+
+----------------------------------------------------------------
+2. OBJECTIVES
+----------------------------------------------------------------
+- Automatically download and format the RDD2022ES dataset into
+  a YOLO-compatible folder structure.
+- Train a lightweight YOLO11n model suitable for CPU execution.
+- Run inference on new images or video and save annotated
+  results.
+- Keep the codebase modular, self-contained, and reproducible:
+  no hardcoded absolute paths, no manual folder setup.
+
+----------------------------------------------------------------
+3. DATASET
+----------------------------------------------------------------
+Name      : RDD2022ES (Road Damage Dataset 2022 — Extended Spain)
+Source    : https://www.kaggle.com/datasets/juusos/rdd2022es
+Format    : Flat directory of .jpg images + YOLO-format .txt
+            label files (one per image, class_id cx cy w h)
+Classes   : Read from classes.txt; inferred from label files
+            if classes.txt is absent.
+Split     : 80% train / 20% validation (random, seed=42)
+
+Destination layout after preparation:
+
+    dataset_yaml/
+        images/
+            train/      ← .jpg files
+            val/        ← .jpg files
+        labels/
+            train/      ← .txt files
+            val/        ← .txt files
+        data.yaml       ← auto-generated
+
+----------------------------------------------------------------
+4. MODEL
+----------------------------------------------------------------
+Architecture : YOLO11n (nano variant — smallest / fastest)
+Pretrained   : yolo11n.pt from Ultralytics asset releases
+               (auto-downloaded to project root on first run)
+Framework    : Ultralytics (ultralytics Python package)
+
+Training configuration (CPU-optimised defaults):
+    epochs  : 5
+    imgsz   : 640
+    batch   : 8
+    workers : 4
+
+Output:
+    runs/detect/train/weights/best.pt   ← best checkpoint
+    runs/detect/train/weights/last.pt   ← final checkpoint
+
+----------------------------------------------------------------
+5. PIPELINE STEPS
+----------------------------------------------------------------
+Step 1 — Prepare dataset  (pipeline/prepare.py)
+    - Download RDD2022ES via KaggleHub.
+    - Locate images and labels inside the unpacked download
+      (handles arbitrarily nested KaggleHub structures).
+    - Split 80/20 and copy into dataset_yaml/.
+    - Auto-generate data.yaml.
+    - Create empty label placeholders for any unlabelled images
+      and report their filenames.
+
+Step 2 — Train  (pipeline/train.py)
+    - Verify dataset_yaml/data.yaml exists (fails fast if not).
+    - Download yolo11n.pt if not already in project root.
+    - Train YOLO11n and save weights to runs/detect/train/.
+
+Step 3 — Predict  (pipeline/predict.py)
+    - Verify trained weights exist (fails fast if not).
+    - Run inference on a source (default: dataset_yaml/images/val/).
+    - Save annotated output to runs/detect/predict/.
+    - Print total detection count on completion.
+
+----------------------------------------------------------------
+6. ENTRY POINT
+----------------------------------------------------------------
+main.py orchestrates the pipeline via --steps argument.
+
+Usage:
+    python main.py                      # full pipeline (1 2 3)
+    python main.py --steps 1            # prepare only
+    python main.py --steps 2            # train only
+    python main.py --steps 3            # predict only
+    python main.py --steps 1 2          # prepare + train
+
+Prediction overrides (with --steps 3):
+    --source    path/to/image, folder, video, or 0 (webcam)
+    --weights   path to a custom .pt file
+    --conf      confidence threshold (default: 0.25)
+    --iou       IoU NMS threshold (default: 0.45)
+    --imgsz     inference image size (default: 640)
+    --save-txt  save predictions as .txt label files
+    --save-conf include confidence scores in .txt files
+
+----------------------------------------------------------------
+7. FILE STRUCTURE
+----------------------------------------------------------------
+AI_RDDPanama/
+    main.py             Orchestrator / CLI entry point
+    filehandler.py      All path constants and folder setup
+    pipeline/
+        __init__.py
+        prepare.py      Step 1: dataset download and formatting
+        train.py        Step 2: model training
+        predict.py      Step 3: inference
+    dataset_yaml/       Auto-generated (git-ignored)
+    runs/               YOLO output (git-ignored)
+    yolo11n.pt          Base weights (git-ignored, auto-downloaded)
+    .gitignore
+    README.md
+    specification.txt
+
+----------------------------------------------------------------
+8. DEPENDENCIES
+----------------------------------------------------------------
+    ultralytics     YOLO model framework
+    kagglehub       Kaggle dataset download client
+
+Install:
+    pip install ultralytics kagglehub
+
+Requirements:
+    Python 3.10+
+    Kaggle API token at ~/.kaggle/kaggle.json
+
+----------------------------------------------------------------
+9. DESIGN DECISIONS
+----------------------------------------------------------------
+- All paths are defined once in filehandler.py and imported
+  everywhere else. No script hardcodes its own paths.
+- setup_folders() in filehandler.py creates the full folder
+  tree at startup — pipeline modules never check for directory
+  existence themselves.
+- Each pipeline module exposes a single run() function with no
+  argument parsing of its own, keeping them testable in
+  isolation and cleanly separated from the CLI layer.
+- Steps enforce ordering via sorted(set(args.steps)) so
+  accidental out-of-order input (e.g. --steps 3 1) is
+  corrected automatically.
+- Missing label files produce empty .txt placeholders rather
+  than silently skipping images, which would cause YOLO
+  dataset validation warnings.
+- The pretrained yolo11n.pt is downloaded to the project root
+  (not the Ultralytics global cache) so all artefacts stay
+  within the project boundary.
+
+----------------------------------------------------------------
+10. KNOWN LIMITATIONS
+----------------------------------------------------------------
+- CPU-only training is slow. 5 epochs at imgsz=640 takes
+  approximately 2–3 hours depending on hardware. Reduce imgsz
+  to 320 for a ~4x speedup at the cost of detection accuracy
+  on small defects.
+- The 80/20 split is random (seed=42). Class distribution
+  across splits is not stratified.
+- Inference defaults to the validation set, which the model
+  has already seen during training. Use --source to point at
+  genuinely unseen images for real-world evaluation.
+
+================================================================
