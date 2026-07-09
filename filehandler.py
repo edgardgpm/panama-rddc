@@ -1,15 +1,17 @@
 """
 filehandler.py
-
+ 
 Single source of truth for every path in the project.
 All other modules import from here — nothing hardcodes its own paths.
-
+ 
 Project layout managed by this module:
-
-    AI_RDDPanama/
+ 
+    PanamaRDDC/
         yolo11n.pt              ← pretrained weights (downloaded on first train)
         dataset_yaml/
             images/
+                convert/        ← drop your HEIC files here before running step 4
+                test/           ← converted JPGs land here (used by step 3)
                 train/
                 val/
             labels/
@@ -28,59 +30,64 @@ Project layout managed by this module:
             prepare.py
             train.py
             predict.py
+            convert.py
         filehandler.py
         main.py
 """
-
+ 
 import os
-
+ 
 # -----------------------------------------
 # Root — everything hangs off this
 # -----------------------------------------
-
+ 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
-
+ 
 # -----------------------------------------
 # Dataset
 # -----------------------------------------
-
+ 
 DATASET_DIR = os.path.join(PROJECT_DIR, "dataset_yaml")
 IMAGE_DIR   = os.path.join(DATASET_DIR, "images")
 LABEL_DIR   = os.path.join(DATASET_DIR, "labels")
 DATA_YAML   = os.path.join(DATASET_DIR, "data.yaml")
-
-TRAIN_IMAGE_DIR = os.path.join(IMAGE_DIR, "train")
-VAL_IMAGE_DIR   = os.path.join(IMAGE_DIR, "val")
-TRAIN_LABEL_DIR = os.path.join(LABEL_DIR, "train")
-VAL_LABEL_DIR   = os.path.join(LABEL_DIR, "val")
-
+ 
+CONVERT_IMAGE_DIR = os.path.join(IMAGE_DIR, "convert")  # drop HEIC files here before step 4
+TEST_IMAGE_DIR    = os.path.join(IMAGE_DIR, "test")      # converted JPGs land here
+TRAIN_IMAGE_DIR   = os.path.join(IMAGE_DIR, "train")
+VAL_IMAGE_DIR     = os.path.join(IMAGE_DIR, "test")
+TRAIN_LABEL_DIR   = os.path.join(LABEL_DIR, "train")
+VAL_LABEL_DIR     = os.path.join(LABEL_DIR, "test")
+ 
 # -----------------------------------------
 # Model weights
 # -----------------------------------------
-
+ 
 PRETRAINED_WEIGHTS = os.path.join(PROJECT_DIR, "yolo11n.pt")
 PRETRAINED_URL     = "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt"
-
+ 
 RUNS_DIR        = os.path.join(PROJECT_DIR, "runs", "detect")
-TRAIN_RUN_DIR   = os.path.join(RUNS_DIR, "train")
+TRAIN_RUN_DIR   = os.path.join(RUNS_DIR, "train-13")
 TRAINED_WEIGHTS = os.path.join(TRAIN_RUN_DIR, "weights", "best.pt")
 PREDICT_RUN_DIR = os.path.join(RUNS_DIR, "predict")
-
+ 
 # -----------------------------------------
 # Dataset split ratio
 # -----------------------------------------
-
+ 
 TRAIN_RATIO = 0.80
 RANDOM_SEED = 42
-
+ 
 # -----------------------------------------
 # Setup — call once at startup to create
 # every folder the pipeline will write into
 # -----------------------------------------
-
+ 
 def setup_folders():
     """Create the full project folder tree (no-op if already exists)."""
     folders = [
+        CONVERT_IMAGE_DIR,
+        TEST_IMAGE_DIR,
         TRAIN_IMAGE_DIR,
         VAL_IMAGE_DIR,
         TRAIN_LABEL_DIR,
@@ -91,15 +98,15 @@ def setup_folders():
     ]
     for folder in folders:
         os.makedirs(folder, exist_ok=True)
-
+ 
 def check_dataset_ready():
     """Return True if the dataset has been prepared (data.yaml exists)."""
     return os.path.exists(DATA_YAML)
-
+ 
 def check_weights_ready():
     """Return True if trained weights exist."""
     return os.path.exists(TRAINED_WEIGHTS)
-
+ 
 def summary():
     """Print a quick status overview of the project state."""
     print("\n--- Project status ---")
@@ -107,4 +114,7 @@ def summary():
     print(f"  Pretrained model : {'OK' if os.path.exists(PRETRAINED_WEIGHTS) else 'not downloaded'}")
     print(f"  Dataset ready    : {'OK' if check_dataset_ready() else 'run step 1'}")
     print(f"  Trained weights  : {'OK' if check_weights_ready() else 'run step 2'}")
+    print(f"  HEIC inbox       : {CONVERT_IMAGE_DIR}")
+    print(f"  Test images      : {TEST_IMAGE_DIR}")
     print("----------------------\n")
+ 

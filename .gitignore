@@ -1,3 +1,4 @@
+· GITIGNORE
 # ---- Python ----
 __pycache__/
 *.py[cod]
@@ -9,33 +10,37 @@ dist/
 build/
 .eggs/
 pip-wheel-metadata/
-
+ 
 # ---- Virtual environments ----
 .venv/
 venv/
 env/
 ENV/
-
+ 
 # ---- Dataset ----
-# The dataset is downloaded automatically by pipeline/prepare.py.
-# No need to commit hundreds of MB of images and labels.
+# Downloaded automatically by pipeline/prepare.py.
+# HEIC inbox and converted test images are local only.
 dataset_yaml/images/
 dataset_yaml/labels/
 dataset_yaml/data.yaml
-
-# ---- Model weights ----
-# Pretrained base weights (re-downloaded automatically by pipeline/train.py).
-yolo11n.pt
-
-# ---- Training runs ----
-# YOLO output: tensorboard logs, plots, trained weights, etc.
-runs/
-
-# ---- KaggleHub cache ----
-# KaggleHub stores downloads under the user profile; exclude if local copy ends up here.
+ 
+# YOLO generates these cache files during training — not needed in version control.
+dataset_yaml/labels/train.cache
+dataset_yaml/labels/val.cache
 *.cache
+ 
+# ---- Model weights ----
+# Base weights are re-downloaded automatically by pipeline/train.py.
+# Trained weights are produced by the pipeline and can be large.
+yolo11n.pt
+ 
+# ---- Training & prediction runs ----
+# YOLO output: loss plots, confusion matrices, trained weights, annotated predictions, etc.
+runs/
+ 
+# ---- KaggleHub cache ----
 .kaggle/
-
+ 
 # ---- IDE / OS ----
 .vscode/
 .idea/
@@ -44,12 +49,13 @@ runs/
 .DS_Store
 Thumbs.db
 desktop.ini
-
+ 
 # ---- Jupyter ----
 .ipynb_checkpoints/
 *.ipynb
-
+ 
 # ---- Misc ----
 *.log
 *.tmp
 *.bak
+ 
